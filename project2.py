@@ -1359,7 +1359,22 @@ def callback_inline(call):
 
         lessons = db.get_user_schedule(user_id, day_key)
         if not lessons:
-            bot.answer_callback_query(call.id, "❌ В этот день нет мероприятий", show_alert=True)
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(types.InlineKeyboardButton(
+                "➕ Добавить мероприятие",
+                callback_data=f"add_{user_id}_{day_key}"
+            ))
+            keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
+
+            bot.edit_message_text(
+                f"📅 *{DAYS[day_key]}*\n\n"
+                f"❌ В этот день нет запланированных мероприятий.\n\n"
+                f"Хотите добавить?",
+                chat_id,
+                call.message.message_id,
+                parse_mode='Markdown',
+                reply_markup=keyboard
+            )
             return
 
         # Показываем список мероприятий для выбора
