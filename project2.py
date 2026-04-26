@@ -429,7 +429,6 @@ class Database:
             return row[0] if row and row[0] else 'ru'
 
 
-# Создаем единый экземпляр БД
 db = Database()
 
 
@@ -532,25 +531,14 @@ def send_daily_schedule_notification():
 
                 lessons_text = "\n".join(lessons_list)
 
-                text = (
-                    f"🌅 *Доброе утро!*\n\n"
-                    f"📅 *{DAYS[day_key]}*\n\n"
-                    f"📚 *Ваши мероприятия сегодня:*\n"
-                    f"{lessons_text}\n\n"
-                    f"✨ Удачного дня!"
-                )
+                text = get_text(user_id, 'morning_schedule', get_text(user_id, day_key), lessons_text)
             else:
-                text = (
-                    f"🌅 *Доброе утро!*\n\n"
-                    f"📅 *{DAYS[day_key]}*\n\n"
-                    f"✨ Сегодня у вас нет запланированных мероприятий.\n"
-                    f"Хорошего отдыха!"
-                )
+                text = get_text(user_id, 'no_morning_events', get_text(user_id, day_key))
 
             keyboard = types.InlineKeyboardMarkup()
             keyboard.row(
-                types.InlineKeyboardButton("📋 Посмотреть", callback_data=f"view_{user_id}_{day_key}"),
-                types.InlineKeyboardButton("✏️ Редактировать", callback_data=f"edit_{user_id}")
+                types.InlineKeyboardButton(get_text(user_id, 'view_btn'), callback_data=f"view_{user_id}_{day_key}"),
+                types.InlineKeyboardButton(get_text(user_id, 'edit_btn'), callback_data=f"edit_{user_id}")
             )
 
             send_notification(user_id, text, keyboard)
@@ -622,22 +610,16 @@ def send_upcoming_lesson_reminders():
                         mins_left = minutes_left % 60
 
                         if hours_left > 0:
-                            time_text = f"{hours_left} ч {mins_left} мин"
+                            time_text = get_text(user_id, 'in_hours', hours_left, mins_left)
                         else:
-                            time_text = f"{mins_left} мин"
+                            time_text = get_text(user_id, 'in_minutes', mins_left)
 
                         # Формируем красивое уведомление
-                        text = (
-                            f"🔔 *НАПОМИНАНИЕ*\n\n"
-                            f"📌 *{lesson_name}*\n"
-                            f"⏰ Начало в: {hour:02d}:{minute:02d}\n"
-                            f"⏱ Осталось: {time_text}\n\n"
-                            f"📍 Не забудьте подготовиться!"
-                        )
+                        text = get_text(user_id, 'reminder', lesson_name, f"{hour:02d}:{minute:02d}", time_text)
 
                         keyboard = types.InlineKeyboardMarkup()
                         keyboard.add(types.InlineKeyboardButton(
-                            "✅ Понятно",
+                            get_text(user_id, 'ack_btn'),
                             callback_data=f"ack_{user_id}"
                         ))
 
@@ -780,9 +762,9 @@ def cmd_today(message):
         lessons = db.get_user_schedule(user_id, day_key)
 
         if not lessons:
-            reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
+            reply = get_text(user_id, 'no_events_in_day', get_text(user_id, day_key))
         else:
-            reply = f"📅 *{DAYS[day_key]}*\n\n"
+            reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
             for i, lesson in enumerate(lessons, 1):
                 reply += f"{i}. {lesson}\n"
 
@@ -801,8 +783,9 @@ def cmd_week(message):
 
     text = get_text(user_id, 'week_schedule') + "\n\n"
     for day_key, day_name in DAYS.items():
+        day_name_localized = get_text(user_id, day_key)
         lessons = schedule.get(day_key, [])
-        text += f"*{day_name}:*\n"
+        text += f"*{day_name_localized}:*\n"
         if lessons:
             for lesson in lessons:
                 text += f"  • {lesson}\n"
@@ -1026,7 +1009,7 @@ def show_schedule_with_comments(chat_id, user_id, day_key):
     if not lessons:
         reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
     else:
-        reply = f"📅 *{DAYS[day_key]}*\n\n"
+        reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
         for i, lesson in enumerate(lessons, 1):
             comment = db.get_comment(user_id, day_key, i - 1)
             reply += f"{i}. {lesson}\n"
@@ -1579,7 +1562,7 @@ def callback_inline(call):
                     if not lessons:
                         reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
                     else:
-                        reply = f"📅 *{DAYS[day_key]}*\n\n"
+                        reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
                         for i, lesson in enumerate(lessons, 1):
                             reply += f"{i}. {lesson}\n"
                     bot.edit_message_text(reply, chat_id, call.message.message_id, parse_mode='Markdown')

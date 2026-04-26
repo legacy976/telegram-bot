@@ -59,6 +59,11 @@ TRANSLATIONS = {
         'auto_clear_info': "Расписание будет автоматически очищаться в выбранный день недели в 00:00",
         'week_schedule': "📆 *Ваше расписание на неделю:*",
         'view_week_btn': "📋 Вся неделя",
+        'at': "в",
+        'in': "через",
+        'view_btn': "📋 Посмотреть",
+        'edit_btn': "✏️ Редактировать",
+        'ack_btn': "✅ Понятно",
     },
     'en': {
 
@@ -121,5 +126,10 @@ TRANSLATIONS = {
         'clear_day': "Clear day",
         'comment_label': "Comment",
         'view_week_btn': "📋 Whole week",
+        'at': "at",
+        'in': "in",
+        'view_btn': "📋 View",
+        'edit_btn': "✏️ Edit",
+        'ack_btn': "✅ Got it",
     }
 }
