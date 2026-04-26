@@ -13,8 +13,6 @@ from telebot import TeleBot, types
 from typing import List, Optional
 from dotenv import load_dotenv
 
-print("★★★ WARNING: THIS IS THE NEW VERSION WITH FIXED WEEK COMMAND ★★★")
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -1548,17 +1546,17 @@ def callback_inline(call):
         try:
             if action == 'view':
                 if day_key == 'week':
-                    # Показать всю неделю
                     schedule = db.get_user_schedule(user_id)
-                    text = "📆 *Ваше расписание на неделю:*\n\n"
+                    text = get_text(user_id, 'week_schedule') + "\n\n"
                     for d_key, d_name in DAYS.items():
+                        day_localized = get_text(user_id, d_key)
                         lessons = schedule.get(d_key, [])
-                        text += f"*{d_name}:*\n"
+                        text += f"*{day_localized}:*\n"
                         if lessons:
                             for lesson in lessons:
                                 text += f"  • {lesson}\n"
                         else:
-                            text += "  _Нет мероприятий_\n"
+                            text += f"  _{get_text(user_id, 'no_events')}_ \n"
                         text += "\n"
                     bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
                 else:
