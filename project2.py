@@ -6,6 +6,7 @@ import threading
 import time
 import schedule
 import sqlite3
+from translations import TRANSLATIONS
 from datetime import datetime, timedelta
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from telebot import TeleBot, types
@@ -52,6 +53,7 @@ def setup_commands():
     try:
         bot.set_my_commands([
             BotCommand("start", "🏠 Главное меню"),
+            BotCommand("language", "🌍 Выбрать язык / Choose language"),
             BotCommand("schedule", "📅 Ваше расписание"),
             BotCommand("today", "📆 Сегодня"),
             BotCommand("week", "📊 Вся неделя"),
@@ -143,6 +145,11 @@ class Database:
                 logger.info("Added auto_clear columns to notification_settings")
             except sqlite3.OperationalError:
                 pass  # Колонки уже существуют
+            try:
+                conn.execute('ALTER TABLE users ADD COLUMN language TEXT DEFAULT "ru"')
+                logger.info("Added language column to users")
+            except sqlite3.OperationalError:
+                pass  # Колонка уже существует
 
     # ===== МЕТОДЫ ДЛЯ РАБОТЫ С ПОЛЬЗОВАТЕЛЯМИ =====
 
@@ -399,9 +406,40 @@ class Database:
             ''', (user_id, day, lesson_index))
             return True
 
+    def set_user_language(self, user_id: int, language: str) -> bool:
+        """Установить язык пользователя"""
+        try:
+            with self.get_connection() as conn:
+                conn.execute('''
+                    UPDATE users SET language = ? WHERE user_id = ?
+                ''', (language, user_id))
+            logger.info(f"Language set for user {user_id}: {language}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting language for user {user_id}: {e}")
+            return False
+
+    def get_user_language(self, user_id: int) -> str:
+        """Получить язык пользователя"""
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT language FROM users WHERE user_id = ?
+            ''', (user_id,))
+            row = cursor.fetchone()
+            return row[0] if row and row[0] else 'ru'
+
 
 # Создаем единый экземпляр БД
 db = Database()
+
+
+def get_text(user_id, key, *args):
+    """Получить локализованный текст"""
+    lang = db.get_user_language(user_id)
+    text = TRANSLATIONS.get(lang, TRANSLATIONS['ru']).get(key, key)
+    if args:
+        text = text.format(*args)
+    return text
 
 
 def days_keyboard(callback_prefix: str = 'view', user_id: Optional[int] = None) -> types.InlineKeyboardMarkup:
@@ -639,23 +677,7 @@ def cmd_start(message):
         message.from_user.last_name
     )
 
-    text = (
-        "👋 *Привет! Я бот с личным расписанием*\n\n"
-        "💡 *Введите / в поле сообщения,\n"
-        "чтобы открыть меню команд*\n\n"
-        "📝 *Команды:*\n"
-        "/schedule - посмотреть расписание\n"
-        "/today - расписание на сегодня\n"
-        "/week - расписание на всю неделю\n"
-        "/upcoming - предстоящие мероприятия\n"
-        "/edit - редактировать расписание/создать мероприятие\n"
-        "/comment - добавить комментарий к мероприятию\n"
-        "/notifications - настройка уведомлений\n"
-        "/autoclear - автоочистка расписания\n"
-        "/settimezone - установить часовой пояс\n"
-        "/mytimezone - текущий часовой пояс\n"
-        "/help - это сообщение"
-    )
+    text = get_text(user_id, 'welcome')
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
@@ -664,7 +686,8 @@ def cmd_schedule(message):
     """Показать расписание пользователя"""
     user_id = message.from_user.id
     keyboard = days_keyboard('view', user_id)
-    bot.send_message(message.chat.id, "Выберите день:", reply_markup=keyboard)
+    text = get_text(user_id, 'choose_day')
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
 
 @bot.message_handler(commands=['settimezone'])
@@ -755,7 +778,7 @@ def cmd_today(message):
         lessons = db.get_user_schedule(user_id, day_key)
 
         if not lessons:
-            reply = f"📅 *{DAYS[day_key]}*\n\nМероприятий нет."
+            reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
         else:
             reply = f"📅 *{DAYS[day_key]}*\n\n"
             for i, lesson in enumerate(lessons, 1):
@@ -774,7 +797,7 @@ def cmd_week(message):
     user_id = message.from_user.id
     schedule = db.get_user_schedule(user_id)
 
-    text = "📆 *Ваше расписание на неделю:*\n\n"
+    text = get_text(user_id, 'week_schedule') + "\n\n"
     for day_key, day_name in DAYS.items():
         lessons = schedule.get(day_key, [])
         text += f"*{day_name}:*\n"
@@ -782,7 +805,7 @@ def cmd_week(message):
             for lesson in lessons:
                 text += f"  • {lesson}\n"
         else:
-            text += "  _Нет мероприятий_\n"
+            text += f"  _{get_text(user_id, 'no_events')}_ \n"
         text += "\n"
 
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
@@ -790,7 +813,6 @@ def cmd_week(message):
 
 @bot.message_handler(commands=['upcoming'])
 def cmd_upcoming(message):
-    """Показать предстоящие мероприятия на сегодня"""
     user_id = message.from_user.id
     tz_name = db.get_user_timezone(user_id)
     tz = pytz.timezone(tz_name)
@@ -821,30 +843,26 @@ def cmd_upcoming(message):
                     lesson_name = lesson
 
                 if hours > 0:
-                    time_str = f"через {hours} ч {minutes} мин"
+                    time_str = get_text(user_id, 'in_hours', hours, minutes)
                 else:
-                    time_str = f"через {minutes} мин"
+                    time_str = get_text(user_id, 'in_minutes', minutes)
 
-                upcoming.append(f"• {lesson_name} в {hour:02d}:{minute:02d} ({time_str})")
+                upcoming.append(get_text(user_id, 'upcoming_item', lesson_name, hour, minute, time_str))
 
     if upcoming:
-        text = "📅 *Предстоящие мероприятия сегодня:*\n\n" + "\n".join(upcoming)
+        text = get_text(user_id, 'upcoming_today') + "\n\n" + "\n".join(upcoming)
     else:
-        text = "📅 *Сегодня больше нет запланированных мероприятий*"
+        text = get_text(user_id, 'no_upcoming')
 
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
 @bot.message_handler(commands=['edit'])
 def cmd_edit(message):
-    """Редактирование личного расписания"""
     user_id = message.from_user.id
     keyboard = days_keyboard('edit', user_id)
-    bot.send_message(
-        message.chat.id,
-        "✏️ Выберите день для редактирования:",
-        reply_markup=keyboard
-    )
+    text = get_text(user_id, 'edit_day')
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
 
 @bot.message_handler(commands=['notifications'])
@@ -856,14 +874,14 @@ def cmd_notifications(message):
     # Добавляем отладочную информацию
     logger.info(f"User {user_id} settings: {settings}")
 
-    status = "✅ Включены" if settings['enabled'] else "❌ Отключены"
+    status = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id, 'notif_disabled')
 
     text = (
-        "🔔 *Настройки уведомлений*\n\n"
-        f"Статус: {status}\n"
-        f"⏰ Утреннее уведомление: *{settings['notify_time']}*\n"
-        f"⏱ Напоминать за: *{settings['notify_before_minutes']}* минут\n\n"
-        "Выберите действие:"
+        f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+        f"{get_text(user_id, 'notif_status')}: {status}\n"
+        f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+        f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+        f"{get_text(user_id, 'notif_choose_action')}:"
     )
 
     keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -908,15 +926,16 @@ def cmd_autoclear(message):
         'sunday': 'Воскресенье'
     }
 
-    status = "✅ Включена" if settings['auto_clear'] else "❌ Отключена"
-    clear_day_name = day_names.get(settings['clear_day'], 'Воскресенье')
+    status = get_text(user_id, 'auto_clear_enabled') if settings['auto_clear'] else get_text(user_id,
+                                                                                             'auto_clear_disabled')
+    clear_day_name = day_names.get(settings['clear_day'], get_text(user_id, 'sunday'))
 
     text = (
-        "🗑️ *Автоматическая очистка расписания*\n\n"
-        f"Статус: {status}\n"
-        f"День очистки: *{clear_day_name}*\n\n"
-        "Расписание будет автоматически очищаться в выбранный день недели в 00:00\n\n"
-        "Выберите действие:"
+        f"🗑️ *{get_text(user_id, 'auto_clear_title')}*\n\n"
+        f"{get_text(user_id, 'notif_status')}: {status}\n"
+        f"{get_text(user_id, 'clear_day')}: *{clear_day_name}*\n\n"
+        f"{get_text(user_id, 'auto_clear_info')}\n\n"
+        f"{get_text(user_id, 'notif_choose_action')}:"
     )
 
     keyboard = InlineKeyboardMarkup(row_width=2)
@@ -974,12 +993,26 @@ def cmd_debug(message):
 
 @bot.message_handler(commands=['comment'])
 def cmd_comment(message):
-    """Добавить комментарий к мероприятию"""
     user_id = message.from_user.id
     keyboard = days_keyboard('comment_select', user_id)
+    text = get_text(user_id, 'choose_weekday')
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
+
+
+@bot.message_handler(commands=['language'])
+def cmd_language(message):
+    """Выбор языка"""
+    user_id = message.from_user.id
+
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🇷🇺 Русский", callback_data=f"lang_ru_{user_id}"),
+        InlineKeyboardButton("🇬🇧 English", callback_data=f"lang_en_{user_id}")
+    )
+
     bot.send_message(
         message.chat.id,
-        "✏️ Выберите день, в котором находится мероприятие:",
+        "🌍 Выберите язык / Choose a language:",
         reply_markup=keyboard
     )
 
@@ -989,14 +1022,14 @@ def show_schedule_with_comments(chat_id, user_id, day_key):
     lessons = db.get_user_schedule(user_id, day_key)
 
     if not lessons:
-        reply = f"📅 *{DAYS[day_key]}*\n\nМероприятий нет."
+        reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
     else:
         reply = f"📅 *{DAYS[day_key]}*\n\n"
         for i, lesson in enumerate(lessons, 1):
             comment = db.get_comment(user_id, day_key, i - 1)
             reply += f"{i}. {lesson}\n"
             if comment:
-                reply += f"   📎 *Комментарий:* {comment}\n"
+                reply += f"   📎 *{get_text(user_id, 'comment_label')}:* {comment}\n"
 
     # Кнопка для добавления/редактирования комментария
     keyboard = types.InlineKeyboardMarkup()
@@ -1350,6 +1383,21 @@ def callback_inline(call):
             cmd_autoclear(call.message)
             return
 
+
+    # Обработка выбора языка
+    elif data.startswith('lang_'):
+        parts = data.split('_')
+        lang = parts[1]
+        user_id = int(parts[2])
+
+        db.set_user_language(user_id, lang)
+        bot.answer_callback_query(call.id, "✅ Language changed!" if lang == 'en' else "✅ Язык изменён!")
+
+        text = "🌍 Language changed to English!" if lang == 'en' else "🌍 Язык изменён на русский!"
+        bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
+        return
+
+
     # Обработка выбора дня для комментария
     elif data.startswith('comment_select_'):
         bot.answer_callback_query(call.id)
@@ -1386,9 +1434,10 @@ def callback_inline(call):
                 callback_data=f"comment_lesson_{user_id}_{day_key}_{idx}"
             ))
         keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
+        text = get_text(user_id, 'choose_event_for_comment')
 
         bot.edit_message_text(
-            f"✏️ Выберите мероприятие в *{DAYS[day_key]}*, к которому добавить комментарий:",
+            f"✏️ {text} *{DAYS[day_key]}*:",
             chat_id,
             call.message.message_id,
             parse_mode='Markdown',
@@ -1418,9 +1467,9 @@ def callback_inline(call):
 
         current_comment = db.get_comment(user_id, day_key, lesson_idx)
 
-        text = f"✏️ Введите комментарий для мероприятия:\n\n*{lesson_name}*"
+        text = f"✏️ {get_text(user_id, 'enter_comment')}\n\n*{lesson_name}*"
         if current_comment:
-            text += f"\n\n📎 *Текущий комментарий:* {current_comment}\n\n_Введите новый комментарий или отправьте «-» чтобы удалить._"
+            text += f"\n\n📎 *{get_text(user_id, 'current_comment')}:* {current_comment}\n\n_{get_text(user_id, 'comment_hint')}_"
 
         bot.edit_message_text(
             text,
@@ -1439,7 +1488,6 @@ def callback_inline(call):
             lesson_name
         )
         return
-
 
     # Обработка часовых поясов
     if data.startswith('tz_'):
@@ -1527,7 +1575,7 @@ def callback_inline(call):
                 else:
                     lessons = db.get_user_schedule(user_id, day_key)
                     if not lessons:
-                        reply = f"📅 *{DAYS[day_key]}*\n\nМероприятий нет."
+                        reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
                     else:
                         reply = f"📅 *{DAYS[day_key]}*\n\n"
                         for i, lesson in enumerate(lessons, 1):
@@ -1746,14 +1794,17 @@ def process_comment_input(message, user_id, day_key, lesson_idx, lesson_name):
         db.delete_comment(user_id, day_key, lesson_idx)
         bot.send_message(
             message.chat.id,
-            f"✅ Комментарий для *{lesson_name}* удалён!",
+            get_text(user_id, 'comment_deleted', lesson_name),
             parse_mode='Markdown'
         )
         return
 
     # Ограничиваем длину комментария
     if len(comment) > 500:
-        bot.send_message(message.chat.id, "❌ Комментарий слишком длинный (макс. 500 символов)")
+        bot.send_message(
+            message.chat.id,
+            get_text(user_id, 'comment_too_long')
+        )
         return
 
     # Сохраняем комментарий
@@ -1761,7 +1812,7 @@ def process_comment_input(message, user_id, day_key, lesson_idx, lesson_name):
 
     bot.send_message(
         message.chat.id,
-        f"✅ Комментарий для *{lesson_name}* добавлен!\n\n📎 {comment}",
+        get_text(user_id, 'comment_added', lesson_name, comment),
         parse_mode='Markdown'
     )
 
