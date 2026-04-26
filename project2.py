@@ -10,7 +10,7 @@ from translations import TRANSLATIONS
 from datetime import datetime, timedelta
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from telebot import TeleBot, types
-from typing import Dict, List, Optional
+from typing import List, Optional
 from dotenv import load_dotenv
 
 logging.basicConfig(
@@ -761,10 +761,12 @@ def cmd_today(message):
 
         lessons = db.get_user_schedule(user_id, day_key)
 
+        day_name_localized = get_text(user_id, day_key)
+
         if not lessons:
-            reply = get_text(user_id, 'no_events_in_day', get_text(user_id, day_key))
+            reply = get_text(user_id, 'no_events_in_day', day_name_localized)
         else:
-            reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
+            reply = f"📅 *{day_name_localized}*\n\n"
             for i, lesson in enumerate(lessons, 1):
                 reply += f"{i}. {lesson}\n"
 
@@ -1559,14 +1561,14 @@ def callback_inline(call):
                     bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
                 else:
                     lessons = db.get_user_schedule(user_id, day_key)
+                    day_name_localized = get_text(user_id, day_key)
                     if not lessons:
-                        reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
+                        reply = get_text(user_id, 'no_events_in_day', day_name_localized)
                     else:
-                        reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
+                        reply = f"📅 *{day_name_localized}*\n\n"
                         for i, lesson in enumerate(lessons, 1):
                             reply += f"{i}. {lesson}\n"
                     bot.edit_message_text(reply, chat_id, call.message.message_id, parse_mode='Markdown')
-                bot.answer_callback_query(call.id)
 
             elif action == 'edit':
                 lessons = db.get_user_schedule(user_id, day_key)
