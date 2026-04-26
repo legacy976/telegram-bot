@@ -13,6 +13,8 @@ from telebot import TeleBot, types
 from typing import List, Optional
 from dotenv import load_dotenv
 
+print("★★★ WARNING: THIS IS THE NEW VERSION WITH FIXED WEEK COMMAND ★★★")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
