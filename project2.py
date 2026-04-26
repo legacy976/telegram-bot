@@ -57,6 +57,7 @@ def setup_commands():
             BotCommand("week", "📊 Вся неделя"),
             BotCommand("upcoming", "⏰ Предстоящие"),
             BotCommand("edit", "✏️ Редактировать"),
+            BotCommand("comment", "💬 Комментарий к мероприятию"),
             BotCommand("notifications", "🔔 Уведомления"),
             BotCommand("autoclear", "🗑️ Автоочистка"),
             BotCommand("settimezone", "🌍 Часовой пояс"),
@@ -648,6 +649,7 @@ def cmd_start(message):
         "/week - расписание на всю неделю\n"
         "/upcoming - предстоящие мероприятия\n"
         "/edit - редактировать расписание/создать мероприятие\n"
+        "/comment - добавить комментарий к мероприятию\n"
         "/notifications - настройка уведомлений\n"
         "/autoclear - автоочистка расписания\n"
         "/settimezone - установить часовой пояс\n"
