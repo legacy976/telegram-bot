@@ -1572,7 +1572,8 @@ def callback_inline(call):
 
             elif action == 'edit':
                 lessons = db.get_user_schedule(user_id, day_key)
-                text = f"*{DAYS[day_key]}*\n\n"
+                day_name_localized = get_text(user_id, day_key)
+                text = f"*{day_name_localized}*\n\n"
                 if lessons:
                     for i, lesson in enumerate(lessons, 1):
                         comment = db.get_comment(user_id, day_key, i - 1)
@@ -1596,8 +1597,10 @@ def callback_inline(call):
                 bot.answer_callback_query(call.id)
 
             elif action == 'add':
+                day_name_localized = get_text(user_id, day_key)
+
                 bot.send_message(chat_id,
-                                 f"Введите новое мероприятие в формате *Название ЧЧ:ММ* для дня *{DAYS[day_key]}*:",
+                                 get_text(user_id, 'add_event_msg', day_name_localized),
                                  parse_mode='Markdown')
                 bot.register_next_step_handler_by_chat_id(
                     chat_id,
@@ -1621,8 +1624,10 @@ def callback_inline(call):
 
                 keyboard.row(types.InlineKeyboardButton("❌ Отмена", callback_data=f"edit_{user_id}_{day_key}"))
 
+                day_name_localized = get_text(user_id, day_key)
+
                 bot.edit_message_text(
-                    f"Выберите мероприятие для удаления из *{DAYS[day_key]}*:",
+                    get_text(user_id, 'remove_event_msg', day_name_localized),
                     chat_id,
                     call.message.message_id,
                     parse_mode='Markdown',

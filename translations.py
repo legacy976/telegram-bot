@@ -3,6 +3,7 @@ TRANSLATIONS = {
         'welcome': "👋 *Привет! Я бот с личным расписанием*\n\n💡 *Введите / в поле сообщения,\nчтобы открыть меню команд*\n\n📝 *Команды:*\n/schedule - посмотреть расписание\n/today - расписание на сегодня\n/week - расписание на всю неделю\n/upcoming - предстоящие мероприятия\n/edit - редактировать расписание/создать мероприятие\n/notifications - настройка уведомлений\n/autoclear - автоочистка расписания\n/settimezone - установить часовой пояс\n/mytimezone - текущий часовой пояс\n/comment - добавить комментарий к мероприятию\n/language - выбрать язык\n/help - это сообщение",
 
         'no_events_in_day': "❌ В этот день нет запланированных мероприятий.",
+        'add_event_msg': "Введите новое мероприятие в формате *Название ЧЧ:ММ* для дня *{}*:",
         'add_event_question': "Хотите добавить?",
         'add_event_btn': "➕ Добавить мероприятие",
         'back_btn': "🔙 Назад",
@@ -64,12 +65,14 @@ TRANSLATIONS = {
         'view_btn': "📋 Посмотреть",
         'edit_btn': "✏️ Редактировать",
         'ack_btn': "✅ Понятно",
+        'remove_event_msg': "Выберите мероприятие для удаления из *{}*:",
     },
     'en': {
 
         'welcome': "👋 *Hello! I'm a personal schedule bot*\n\n💡 *Type / in the message field\nto open the commands menu*\n\n📝 *Commands:*\n/schedule - view schedule\n/today - today's schedule\n/week - whole week schedule\n/upcoming - upcoming events\n/edit - edit schedule\n/notifications - notification settings\n/autoclear - auto-clear schedule\n/settimezone - set timezone\n/mytimezone - my timezone\n/comment - add comment to event\n/language - choose language\n/help - this message",
 
         'no_events': "No events",
+        'add_event_msg': "Enter a new event in format *Name HH:MM* for *{}*:",
         'week_schedule': "📆 *Your weekly schedule:*",
         'no_events_in_day': "❌ No events scheduled for this day.",
         'add_event_question': "Would you like to add one?",
@@ -131,5 +134,6 @@ TRANSLATIONS = {
         'view_btn': "📋 View",
         'edit_btn': "✏️ Edit",
         'ack_btn': "✅ Got it",
+        'remove_event_msg': "Choose an event to delete from *{}*:",
     }
 }
