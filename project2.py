@@ -118,6 +118,18 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             )''')
 
+            # Таблица для комментариев к мероприятиям
+            conn.execute('''CREATE TABLE IF NOT EXISTS lesson_comments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        day TEXT NOT NULL,
+                        lesson_index INTEGER NOT NULL,
+                        comment TEXT DEFAULT '',
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(user_id),
+                        UNIQUE(user_id, day, lesson_index)
+                    )''')
+
             # Индексы для быстрого поиска
             conn.execute('''CREATE INDEX IF NOT EXISTS idx_user_schedules 
                 ON user_schedules(user_id, day)''')
@@ -355,6 +367,36 @@ class Database:
         except Exception as e:
             logger.error(f"Error clearing schedule for user {user_id}: {e}")
             return False
+
+    def add_comment(self, user_id: int, day: str, lesson_index: int, comment: str):
+        """Добавить или обновить комментарий к мероприятию"""
+        with self.get_connection() as conn:
+            conn.execute('''
+                INSERT INTO lesson_comments (user_id, day, lesson_index, comment, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, day, lesson_index) DO UPDATE SET
+                    comment = excluded.comment,
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (user_id, day, lesson_index, comment))
+            logger.info(f"Comment added for user {user_id}, {day}, lesson {lesson_index}")
+
+    def get_comment(self, user_id: int, day: str, lesson_index: int) -> str:
+        """Получить комментарий к мероприятию"""
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT comment FROM lesson_comments 
+                WHERE user_id = ? AND day = ? AND lesson_index = ?
+            ''', (user_id, day, lesson_index))
+            row = cursor.fetchone()
+            return row[0] if row else ""
+
+    def delete_comment(self, user_id: int, day: str, lesson_index: int) -> bool:
+        """Удалить комментарий"""
+        with self.get_connection() as conn:
+            conn.execute('''
+                DELETE FROM lesson_comments WHERE user_id = ? AND day = ? AND lesson_index = ?
+            ''', (user_id, day, lesson_index))
+            return True
 
 
 # Создаем единый экземпляр БД
@@ -928,6 +970,41 @@ def cmd_debug(message):
     bot.send_message(message.chat.id, text, parse_mode='Markdown')
 
 
+@bot.message_handler(commands=['comment'])
+def cmd_comment(message):
+    """Добавить комментарий к мероприятию"""
+    user_id = message.from_user.id
+    keyboard = days_keyboard('comment_select', user_id)
+    bot.send_message(
+        message.chat.id,
+        "✏️ Выберите день, в котором находится мероприятие:",
+        reply_markup=keyboard
+    )
+
+
+def show_schedule_with_comments(chat_id, user_id, day_key):
+    """Показать расписание с комментариями"""
+    lessons = db.get_user_schedule(user_id, day_key)
+
+    if not lessons:
+        reply = f"📅 *{DAYS[day_key]}*\n\nМероприятий нет."
+    else:
+        reply = f"📅 *{DAYS[day_key]}*\n\n"
+        for i, lesson in enumerate(lessons, 1):
+            comment = db.get_comment(user_id, day_key, i - 1)
+            reply += f"{i}. {lesson}\n"
+            if comment:
+                reply += f"   📎 *Комментарий:* {comment}\n"
+
+    # Кнопка для добавления/редактирования комментария
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.row(
+        types.InlineKeyboardButton("📝 Добавить комментарий", callback_data=f"comment_{user_id}_{day_key}")
+    )
+
+    bot.send_message(chat_id, reply, parse_mode='Markdown', reply_markup=keyboard)
+
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     """Обработка нажатий на кнопки"""
@@ -1271,6 +1348,82 @@ def callback_inline(call):
             cmd_autoclear(call.message)
             return
 
+    # Обработка выбора дня для комментария
+    elif data.startswith('comment_select_'):
+        bot.answer_callback_query(call.id)
+        parts = data.split('_')
+        user_id = int(parts[2])
+        day_key = parts[3]
+
+        lessons = db.get_user_schedule(user_id, day_key)
+        if not lessons:
+            bot.answer_callback_query(call.id, "❌ В этот день нет мероприятий", show_alert=True)
+            return
+
+        # Показываем список мероприятий для выбора
+        keyboard = types.InlineKeyboardMarkup()
+        for idx, lesson in enumerate(lessons):
+            short = lesson if len(lesson) <= 30 else lesson[:27] + '...'
+            keyboard.add(types.InlineKeyboardButton(
+                short,
+                callback_data=f"comment_lesson_{user_id}_{day_key}_{idx}"
+            ))
+        keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
+
+        bot.edit_message_text(
+            f"✏️ Выберите мероприятие в *{DAYS[day_key]}*, к которому добавить комментарий:",
+            chat_id,
+            call.message.message_id,
+            parse_mode='Markdown',
+            reply_markup=keyboard
+        )
+        return
+
+        # Обработка выбора мероприятия
+    elif data.startswith('comment_lesson_'):
+        bot.answer_callback_query(call.id)
+        parts = data.split('_')
+        user_id = int(parts[2])
+        day_key = parts[3]
+        lesson_idx = int(parts[4])
+
+        lessons = db.get_user_schedule(user_id, day_key)
+        lesson_name = lessons[lesson_idx]
+
+        # Сохраняем данные во временном хранилище
+        if not hasattr(bot, 'temp_comment_data'):
+            bot.temp_comment_data = {}
+        bot.temp_comment_data[user_id] = {
+            'day_key': day_key,
+            'lesson_idx': lesson_idx,
+            'lesson_name': lesson_name
+        }
+
+        current_comment = db.get_comment(user_id, day_key, lesson_idx)
+
+        text = f"✏️ Введите комментарий для мероприятия:\n\n*{lesson_name}*"
+        if current_comment:
+            text += f"\n\n📎 *Текущий комментарий:* {current_comment}\n\n_Введите новый комментарий или отправьте «-» чтобы удалить._"
+
+        bot.edit_message_text(
+            text,
+            chat_id,
+            call.message.message_id,
+            parse_mode='Markdown'
+        )
+
+        # Ждём следующий шаг
+        bot.register_next_step_handler_by_chat_id(
+            chat_id,
+            process_comment_input,
+            user_id,
+            day_key,
+            lesson_idx,
+            lesson_name
+        )
+        return
+
+
     # Обработка часовых поясов
     if data.startswith('tz_'):
         if data == 'tz_manual':
@@ -1370,7 +1523,10 @@ def callback_inline(call):
                 text = f"*{DAYS[day_key]}*\n\n"
                 if lessons:
                     for i, lesson in enumerate(lessons, 1):
+                        comment = db.get_comment(user_id, day_key, i - 1)
                         text += f"{i}. {lesson}\n"
+                        if comment:
+                            text += f"   📎 *Комментарий:* {comment[:50]}...\n"
                 else:
                     text += "Мероприятий нет.\n"
                 text += "\nВыберите действие:"
@@ -1378,7 +1534,8 @@ def callback_inline(call):
                 keyboard = types.InlineKeyboardMarkup()
                 keyboard.row(
                     types.InlineKeyboardButton("➕ Добавить", callback_data=f"add_{user_id}_{day_key}"),
-                    types.InlineKeyboardButton("❌ Удалить", callback_data=f"remove_{user_id}_{day_key}")
+                    types.InlineKeyboardButton("❌ Удалить", callback_data=f"remove_{user_id}_{day_key}"),
+                    types.InlineKeyboardButton("📝 Комментарий", callback_data=f"comment_select_{user_id}_{day_key}")
                 )
                 keyboard.row(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
 
@@ -1561,6 +1718,35 @@ def process_add_lesson(message, user_id, day_key):
     )
 
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=keyboard)
+
+
+def process_comment_input(message, user_id, day_key, lesson_idx, lesson_name):
+    """Обработка введённого комментария"""
+    comment = message.text.strip()
+
+    # Если пользователь отправил "-", удаляем комментарий
+    if comment == '-':
+        db.delete_comment(user_id, day_key, lesson_idx)
+        bot.send_message(
+            message.chat.id,
+            f"✅ Комментарий для *{lesson_name}* удалён!",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Ограничиваем длину комментария
+    if len(comment) > 500:
+        bot.send_message(message.chat.id, "❌ Комментарий слишком длинный (макс. 500 символов)")
+        return
+
+    # Сохраняем комментарий
+    db.add_comment(user_id, day_key, lesson_idx, comment)
+
+    bot.send_message(
+        message.chat.id,
+        f"✅ Комментарий для *{lesson_name}* добавлен!\n\n📎 {comment}",
+        parse_mode='Markdown'
+    )
 
 
 if __name__ == '__main__':
