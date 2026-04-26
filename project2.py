@@ -462,12 +462,12 @@ def days_keyboard(callback_prefix: str = 'view', user_id: Optional[int] = None) 
     if callback_prefix == 'view':
         if user_id:
             keyboard.row(types.InlineKeyboardButton(
-                "📋 Вся неделя",
+                get_text(user_id, 'view_week_btn'),
                 callback_data=f"view_{user_id}_week"
             ))
         else:
             keyboard.row(types.InlineKeyboardButton(
-                "📋 Вся неделя",
+                get_text(user_id, 'view_week_btn') if user_id else "📋 Вся неделя",
                 callback_data="view_week"
             ))
 
