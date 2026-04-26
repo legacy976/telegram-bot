@@ -449,10 +449,12 @@ def days_keyboard(callback_prefix: str = 'view', user_id: Optional[int] = None) 
 
     for day_key, day_name in DAYS.items():
         if user_id:
+            button_text = get_text(user_id, day_key)
             callback = f"{callback_prefix}_{user_id}_{day_key}"
         else:
+            button_text = day_name
             callback = f"{callback_prefix}_{day_key}"
-        buttons.append(types.InlineKeyboardButton(day_name, callback_data=callback))
+        buttons.append(types.InlineKeyboardButton(button_text, callback_data=callback))
 
     keyboard.add(*buttons)
 
