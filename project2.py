@@ -151,8 +151,6 @@ class Database:
             except sqlite3.OperationalError:
                 pass  # Колонка уже существует
 
-    # ===== МЕТОДЫ ДЛЯ РАБОТЫ С ПОЛЬЗОВАТЕЛЯМИ =====
-
     def register_user(self, user_id: int, username: str = None,
                       first_name: str = None, last_name: str = None):
         """Зарегистрировать пользователя"""
@@ -172,8 +170,6 @@ class Database:
                             INSERT OR IGNORE INTO notification_settings (user_id)
                             VALUES (?)
                         ''', (user_id,))
-
-    # ===== МЕТОДЫ ДЛЯ РАБОТЫ С ЧАСОВЫМИ ПОЯСАМИ =====
 
     def set_user_timezone(self, user_id: int, timezone: str) -> bool:
         """Сохранить часовой пояс пользователя"""
@@ -202,8 +198,6 @@ class Database:
             ''', (user_id,))
             row = cursor.fetchone()
             return row[0] if row else 'UTC'
-
-    # ===== МЕТОДЫ ДЛЯ РАБОТЫ С РАСПИСАНИЕМ =====
 
     def get_user_schedule(self, user_id: int, day: Optional[str] = None):
         """
@@ -1656,6 +1650,17 @@ def callback_inline(call):
     elif data == "cancel":
         bot.edit_message_text("❌ Действие отменено.", chat_id, call.message.message_id)
         bot.answer_callback_query(call.id)
+
+
+@bot.message_handler(commands=['download_db'])
+def cmd_download_db(message):
+    user_id = message.from_user.id
+    ADMIN_ID = 6129089122  # ваш Telegram ID
+    if user_id != ADMIN_ID:
+        bot.reply_to(message, "❌ Нет прав")
+        return
+    with open('bot.db', 'rb') as f:
+        bot.send_document(message.chat.id, f, caption="📁 База данных")
 
 
 def check_and_clear_schedules():
