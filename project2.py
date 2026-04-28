@@ -1663,6 +1663,37 @@ def cmd_download_db(message):
         bot.send_document(message.chat.id, f, caption="📁 База данных")
 
 
+@bot.message_handler(commands=['list_users'])
+def cmd_list_users(message):
+    """Показать список пользователей (только для админа)"""
+    user_id = message.from_user.id
+    ADMIN_ID = 6129089122  # 👈 ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
+
+    if user_id != ADMIN_ID:
+        bot.reply_to(message, "❌ Нет прав")
+        return
+
+    conn = sqlite3.connect('bot.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, username, first_name, created_at FROM users ORDER BY created_at DESC")
+    users = cursor.fetchall()
+    conn.close()
+
+    if not users:
+        bot.reply_to(message, "Нет пользователей")
+        return
+
+    text = "👥 *Список пользователей:*\n\n"
+    for user in users:
+        text += f"🆔 ID: `{user[0]}`\n"
+        text += f"📝 Имя: {user[2] or 'Не указано'}\n"
+        text += f"🔗 Username: @{user[1] if user[1] else 'Нет'}\n"
+        text += f"📅 Зарегистрирован: {user[3]}\n"
+        text += "───────────\n"
+
+    bot.send_message(message.chat.id, text, parse_mode='Markdown')
+
+
 def check_and_clear_schedules():
     """Проверить и очистить расписания пользователей с автоочисткой"""
     try:
