@@ -1691,7 +1691,7 @@ def cmd_list_users(message):
         text += f"📅 Зарегистрирован: {user[3]}\n"
         text += "───────────\n"
 
-    bot.send_message(message.chat.id, text, parse_mode='Markdown')
+    bot.send_message(message.chat.id, text, parse_mode=None)
 
 
 def check_and_clear_schedules():
