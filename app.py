@@ -54,19 +54,19 @@ def setup_commands():
     """Настроить меню команд Telegram"""
     try:
         bot.set_my_commands([
-            BotCommand("start", "🏠 Главное меню"),
-            BotCommand("language", "🌍 Выбрать язык / Choose language"),
-            BotCommand("schedule", "📅 Ваше расписание"),
-            BotCommand("today", "📆 Сегодня"),
-            BotCommand("week", "📊 Вся неделя"),
-            BotCommand("upcoming", "⏰ Предстоящие"),
-            BotCommand("edit", "✏️ Редактировать"),
-            BotCommand("comment", "💬 Комментарий к мероприятию"),
-            BotCommand("notifications", "🔔 Уведомления"),
-            BotCommand("autoclear", "🗑️ Автоочистка"),
-            BotCommand("settimezone", "🌍 Часовой пояс"),
-            BotCommand("mytimezone", "🕐 Ваш часовой пояс"),
-            BotCommand("help", "❓ Помощь"),
+            BotCommand("start", "🏠 Main menu"),
+            BotCommand("language", "🌍 Language"),
+            BotCommand("schedule", "📅 Your schedule"),
+            BotCommand("today", "📆 Today"),
+            BotCommand("week", "📊 Week"),
+            BotCommand("upcoming", "⏰ Upcoming events"),
+            BotCommand("edit", "✏️ Edit schedule"),
+            BotCommand("comment", "💬 Add comment"),
+            BotCommand("notifications", "🔔 Notification settings"),
+            BotCommand("autoclear", "🗑️ Auto-clear schedule"),
+            BotCommand("settimezone", "🌍 Set timezone"),
+            BotCommand("mytimezone", "🕐 My timezone"),
+            BotCommand("help", "❓ Help"),
         ])
         logger.info("Commands menu configured")
     except Exception as e:
