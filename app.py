@@ -1067,21 +1067,23 @@ def callback_inline(call):
             status_text = "✅ Включены" if settings['enabled'] else "❌ Отключены"
 
             text = (
-                "🔔 *Настройки уведомлений*\n\n"
-                f"Статус: {status_text}\n"
-                f"⏰ Утреннее уведомление: *{settings['notify_time']}*\n"
-                f"⏱ Напоминать за: *{settings['notify_before_minutes']}* минут\n\n"
-                "Выберите действие:"
+                f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+                f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+                f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+                f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+                f"{get_text(user_id, 'notif_choose_action')}:"
             )
 
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.row(
-                types.InlineKeyboardButton("🔛 Вкл/Выкл", callback_data=f"notif_toggle_{user_id}"),
-                types.InlineKeyboardButton("⏰ Время уведомления", callback_data=f"notif_time_{user_id}")
+                types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'),
+                                           callback_data=f"notif_toggle_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
             )
             keyboard.row(
-                types.InlineKeyboardButton("⏱ Интервал напоминания", callback_data=f"notif_interval_{user_id}"),
-                types.InlineKeyboardButton("📝 Тест", callback_data=f"notif_test_{user_id}")
+                types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+                                           callback_data=f"notif_interval_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
             )
 
             bot.edit_message_text(
@@ -1154,12 +1156,11 @@ def callback_inline(call):
             markup = types.InlineKeyboardMarkup(row_width=3)
             intervals = [15, 30, 60, 120, 180, 1440]
             for m in intervals:
-                label = f"{m} мин" if m < 1440 else "24 часа"
-                markup.add(types.InlineKeyboardButton(
-                    label,
-                    callback_data=f"notif_setinterval_{m}"
-                ))
-            markup.add(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'), callback_data="notif_cancel"))
+                if m < 1440:
+                    label = f"{m} {get_text(user_id, 'minutes_short')}"
+                else:
+                    label = get_text(user_id, 'hours_24')
+                markup.add(types.InlineKeyboardButton(label, callback_data=f"notif_setinterval_{m}"))
 
             bot.edit_message_text(
                 get_text(user_id, 'interval_title'),
@@ -1206,7 +1207,7 @@ def callback_inline(call):
         elif action == 'test':
             send_notification(
                 user_id,
-                "🔔 *Тестовое уведомление*\n\nЕсли вы это видите, значит уведомления работают правильно!"
+                get_text(user_id, 'test_notification')
             )
             bot.answer_callback_query(call.id, "✅ Тестовое уведомление отправлено")
 
@@ -1403,10 +1404,13 @@ def callback_inline(call):
         if not lessons:
             keyboard = types.InlineKeyboardMarkup()
             keyboard.add(types.InlineKeyboardButton(
-                "➕ Добавить мероприятие",
+                get_text(user_id, 'add_event_btn'),
                 callback_data=f"add_{user_id}_{day_key}"
             ))
-            keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
+            keyboard.add(types.InlineKeyboardButton(
+                get_text(user_id, 'back_btn_short'),
+                callback_data=f"view_{user_id}"
+            ))
 
             bot.edit_message_text(
                 f"📅 *{get_text(user_id, day_key)}*\n\n"
@@ -1427,7 +1431,7 @@ def callback_inline(call):
                 short,
                 callback_data=f"comment_lesson_{user_id}_{day_key}_{idx}"
             ))
-        keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
+        keyboard.add(types.InlineKeyboardButton(get_text(user_id, 'back_btn_short'), callback_data=f"view_{user_id}"))
         text = get_text(user_id, 'choose_event_for_comment')
 
         bot.edit_message_text(
