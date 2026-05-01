@@ -76,7 +76,11 @@ def setup_commands():
 
 class Database:
     def __init__(self, db_path='bot.db'):
-        self.db_path = db_path
+        # Если запущено на Amvera
+        if os.getenv('AMVERA'):  # Amvera добавляет эту переменную
+            self.db_path = '/data/bot.db'
+        else:
+            self.db_path = db_path
         self.init_db()
 
     def get_connection(self):
