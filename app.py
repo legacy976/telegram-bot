@@ -671,6 +671,7 @@ def cmd_schedule(message):
 @bot.message_handler(commands=['settimezone'])
 def cmd_set_timezone(message):
     """Установка часового пояса"""
+    user_id = message.from_user.id
     markup = types.InlineKeyboardMarkup(row_width=2)
     zones = [
         ("🇷🇺 Москва (UTC+3)", "Europe/Moscow"),
@@ -699,8 +700,7 @@ def cmd_set_timezone(message):
 
     bot.send_message(
         message.chat.id,
-        "🌍 *Выберите ваш часовой пояс:*\n\n"
-        "От этого зависит время для команды /today",
+        get_text(user_id, 'timezone_title'),
         reply_markup=markup,
         parse_mode='Markdown'
     )
@@ -868,21 +868,21 @@ def cmd_notifications(message):
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     keyboard.row(
         types.InlineKeyboardButton(
-            "🔛 Вкл/Выкл",
+            get_text(user_id, 'notif_toggle_btn'),
             callback_data=f"notif_toggle_{user_id}"
         ),
         types.InlineKeyboardButton(
-            "⏰ Время уведомления",
+            get_text(user_id, 'notif_time_btn'),
             callback_data=f"notif_time_{user_id}"
         )
     )
     keyboard.row(
         types.InlineKeyboardButton(
-            "⏱ Интервал напоминания",
+            get_text(user_id, 'notif_interval_btn'),
             callback_data=f"notif_interval_{user_id}"
         ),
         types.InlineKeyboardButton(
-            "📝 Тест",
+            get_text(user_id, 'notif_test_btn'),
             callback_data=f"notif_test_{user_id}"
         )
     )
@@ -923,22 +923,22 @@ def cmd_autoclear(message):
 
     if settings['auto_clear']:
         keyboard.add(InlineKeyboardButton(
-            "🔴 Отключить автоочистку",
+            get_text(user_id, 'disable_btn'),
             callback_data=f"autoclear_toggle_{user_id}"
         ))
     else:
         keyboard.add(InlineKeyboardButton(
-            "🟢 Включить автоочистку",
+            get_text(user_id, 'enable_btn'),
             callback_data=f"autoclear_toggle_{user_id}"
         ))
 
     keyboard.add(InlineKeyboardButton(
-        "📅 Выбрать день очистки",
+        get_text(user_id, 'choose_clear_day'),
         callback_data=f"autoclear_day_{user_id}"
     ))
 
     keyboard.add(InlineKeyboardButton(
-        "🧹 Очистить сейчас",
+        get_text(user_id, 'clear_now_btn'),
         callback_data=f"autoclear_now_{user_id}"
     ))
 
@@ -1003,7 +1003,7 @@ def show_schedule_with_comments(chat_id, user_id, day_key):
     lessons = db.get_user_schedule(user_id, day_key)
 
     if not lessons:
-        reply = get_text(user_id, 'no_events_in_day', DAYS[day_key])
+        reply = get_text(user_id, 'no_events_in_day', get_text(user_id, day_key))
     else:
         reply = f"📅 *{get_text(user_id, day_key)}*\n\n"
         for i, lesson in enumerate(lessons, 1):
@@ -1027,6 +1027,19 @@ def callback_inline(call):
     data = call.data
     chat_id = call.message.chat.id
     user_id = call.from_user.id
+
+    def safe_edit_text(text, reply_markup=None, parse_mode='Markdown'):
+        try:
+            bot.edit_message_text(
+                text,
+                chat_id,
+                call.message.message_id,
+                parse_mode=parse_mode,
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            if "message is not modified" not in str(e):
+                logger.error(f"Edit error: {e}")
 
     # Обработка кнопок "Понятно" из уведомлений
     if data.startswith('ack_'):
@@ -1087,7 +1100,7 @@ def callback_inline(call):
                     t,
                     callback_data=f"notif_settime_{t}"
                 ))
-            markup.add(types.InlineKeyboardButton("❌ Отмена", callback_data="notif_cancel"))
+            markup.add(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'), callback_data="notif_cancel"))
 
             bot.edit_message_text(
                 "⏰ Выберите время для ежедневных уведомлений:",
@@ -1146,10 +1159,10 @@ def callback_inline(call):
                     label,
                     callback_data=f"notif_setinterval_{m}"
                 ))
-            markup.add(types.InlineKeyboardButton("❌ Отмена", callback_data="notif_cancel"))
+            markup.add(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'), callback_data="notif_cancel"))
 
             bot.edit_message_text(
-                "⏱ За сколько минут напоминать о мероприятиях?",
+                get_text(user_id, 'interval_title'),
                 chat_id,
                 call.message.message_id,
                 reply_markup=markup
@@ -1396,9 +1409,9 @@ def callback_inline(call):
             keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
 
             bot.edit_message_text(
-                f"📅 *{DAYS[day_key]}*\n\n"
-                f"❌ В этот день нет запланированных мероприятий.\n\n"
-                f"Хотите добавить?",
+                f"📅 *{get_text(user_id, day_key)}*\n\n"
+                f"{get_text(user_id, 'no_events_in_day')}\n\n"
+                f"{get_text(user_id, 'add_event_question')}",
                 chat_id,
                 call.message.message_id,
                 parse_mode='Markdown',
@@ -1418,7 +1431,7 @@ def callback_inline(call):
         text = get_text(user_id, 'choose_event_for_comment')
 
         bot.edit_message_text(
-            f"✏️ {text} *{DAYS[day_key]}*:",
+            f"✏️ {text} *{get_text(user_id, day_key)}*:",
             chat_id,
             call.message.message_id,
             parse_mode='Markdown',
@@ -1502,8 +1515,51 @@ def callback_inline(call):
         bot.answer_callback_query(call.id)
         return
 
+
+    elif data.startswith('edit_') and len(data.split('_')) == 3:
+        # Формат: edit_123456789_monday
+        bot.answer_callback_query(call.id)
+        parts = data.split('_')
+        user_id = int(parts[1])
+        day_key = parts[2]
+
+        # Показываем конкретный день с кнопками
+        lessons = db.get_user_schedule(user_id, day_key)
+        day_name_localized = get_text(user_id, day_key)
+        text = f"*{day_name_localized}*\n\n"
+        if lessons:
+            for i, lesson in enumerate(lessons, 1):
+                comment = db.get_comment(user_id, day_key, i - 1)
+                text += f"{i}. {lesson}\n"
+                if comment:
+                    text += f"   📎 *{get_text(user_id, 'comment_label')}:* {comment[:50]}...\n"
+        else:
+            text += f"_{get_text(user_id, 'no_events')}_ \n"
+        text += f"\n{get_text(user_id, 'notif_choose_action')}:"
+
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.row(
+            types.InlineKeyboardButton(get_text(user_id, 'add_event'), callback_data=f"add_{user_id}_{day_key}"),
+            types.InlineKeyboardButton(get_text(user_id, 'delete_event'), callback_data=f"remove_{user_id}_{day_key}"),
+            types.InlineKeyboardButton(get_text(user_id, 'comment_btn'),
+                                       callback_data=f"comment_select_{user_id}_{day_key}")
+        )
+        keyboard.row(types.InlineKeyboardButton(get_text(user_id, 'back_btn'), callback_data=f"edit_{user_id}"))
+
+        safe_edit_text(text, keyboard)
+        return
+
+
+
+    elif data.startswith('edit_') and len(data.split('_')) == 2:
+        bot.answer_callback_query(call.id)
+        user_id = int(data.split('_')[1])
+        keyboard = days_keyboard('edit', user_id)
+        safe_edit_text(get_text(user_id, 'edit_day'), keyboard)
+        return
+
     # Обработка расписания
-    if data.startswith(('view_', 'edit_', 'add_', 'remove_', 'del_', 'done_', 'ack_')):
+    if data.startswith(('view_', 'add_', 'remove_', 'del_', 'done_', 'ack_')):
         parts = data.split('_')
         action = parts[0]
 
@@ -1564,37 +1620,40 @@ def callback_inline(call):
                             reply += f"{i}. {lesson}\n"
                     bot.edit_message_text(reply, chat_id, call.message.message_id, parse_mode='Markdown')
 
-            elif action == 'edit':
-                lessons = db.get_user_schedule(user_id, day_key)
-                day_name_localized = get_text(user_id, day_key)
-                text = f"*{day_name_localized}*\n\n"
-                if lessons:
-                    for i, lesson in enumerate(lessons, 1):
-                        comment = db.get_comment(user_id, day_key, i - 1)
-                        text += f"{i}. {lesson}\n"
-                        if comment:
-                            text += f"   📎 *Комментарий:* {comment[:50]}...\n"
-                else:
-                    text += "Мероприятий нет.\n"
-                text += "\nВыберите действие:"
-
-                keyboard = types.InlineKeyboardMarkup()
-                keyboard.row(
-                    types.InlineKeyboardButton("➕ Добавить", callback_data=f"add_{user_id}_{day_key}"),
-                    types.InlineKeyboardButton("❌ Удалить", callback_data=f"remove_{user_id}_{day_key}"),
-                    types.InlineKeyboardButton("📝 Комментарий", callback_data=f"comment_select_{user_id}_{day_key}")
-                )
-                keyboard.row(types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}"))
-
-                bot.edit_message_text(text, chat_id, call.message.message_id,
-                                      parse_mode='Markdown', reply_markup=keyboard)
-                bot.answer_callback_query(call.id)
+            # elif action == 'edit':
+            #     lessons = db.get_user_schedule(user_id, day_key)
+            #     day_name_localized = get_text(user_id, day_key)
+            #     text = f"*{day_name_localized}*\n\n"
+            #     if lessons:
+            #         for i, lesson in enumerate(lessons, 1):
+            #             comment = db.get_comment(user_id, day_key, i - 1)
+            #             text += f"{i}. {lesson}\n"
+            #             if comment:
+            #                 text += f"   📎 *{get_text(user_id, 'comment_label')}:* {comment[:50]}...\n"
+            #     else:
+            #         text += f"_{get_text(user_id, 'no_events')}_ \n"
+            #     text += f"\n{get_text(user_id, 'notif_choose_action')}:"
+            #
+            #     keyboard = types.InlineKeyboardMarkup()
+            #     keyboard.row(
+            #         types.InlineKeyboardButton(get_text(user_id, 'add_event'),
+            #                                    callback_data=f"add_{user_id}_{day_key}"),
+            #         types.InlineKeyboardButton(get_text(user_id, 'delete_event'),
+            #                                    callback_data=f"remove_{user_id}_{day_key}"),
+            #         types.InlineKeyboardButton(get_text(user_id, 'comment_btn'),
+            #                                    callback_data=f"comment_select_{user_id}_{day_key}")
+            #     )
+            #     keyboard.row(types.InlineKeyboardButton(get_text(user_id, 'back_btn'), callback_data=f"edit_{user_id}"))
+            #
+            #     bot.edit_message_text(text, chat_id, call.message.message_id,
+            #                           parse_mode='Markdown', reply_markup=keyboard)
+            #     bot.answer_callback_query(call.id)
 
             elif action == 'add':
                 day_name_localized = get_text(user_id, day_key)
 
                 bot.send_message(chat_id,
-                                 get_text(user_id, 'add_event_msg', day_name_localized),
+                                 get_text(user_id, 'add_event_msg', get_text(user_id, day_key)),
                                  parse_mode='Markdown')
                 bot.register_next_step_handler_by_chat_id(
                     chat_id,
@@ -1616,7 +1675,8 @@ def callback_inline(call):
                     callback = f"del_{user_id}_{day_key}_{idx}"
                     keyboard.add(types.InlineKeyboardButton(short, callback_data=callback))
 
-                keyboard.row(types.InlineKeyboardButton("❌ Отмена", callback_data=f"edit_{user_id}_{day_key}"))
+                keyboard.row(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'),
+                                                        callback_data=f"edit_{user_id}_{day_key}"))
 
                 day_name_localized = get_text(user_id, day_key)
 
@@ -1633,7 +1693,7 @@ def callback_inline(call):
                 if db.delete_lesson(user_id, day_key, idx):
                     bot.answer_callback_query(call.id, "✅ Мероприятие удалено")
                     lessons = db.get_user_schedule(user_id, day_key)
-                    text = f"✅ Мероприятие удалено из *{DAYS[day_key]}*.\n\nТекущее расписание:\n"
+                    text = f"✅ {get_text(user_id, 'event_deleted_from')} *{get_text(user_id, day_key)}*.\n\n{get_text(user_id, 'current_schedule')}:\n"
                     if lessons:
                         for i, lesson in enumerate(lessons, 1):
                             text += f"{i}. {lesson}\n"
@@ -1650,6 +1710,9 @@ def callback_inline(call):
     elif data == "cancel":
         bot.edit_message_text("❌ Действие отменено.", chat_id, call.message.message_id)
         bot.answer_callback_query(call.id)
+    else:
+        logger.warning(f"Unknown callback data: {data}")
+        bot.answer_callback_query(call.id, "⚠️ Неизвестная команда")
 
 
 @bot.message_handler(commands=['download_db'])
@@ -1731,10 +1794,11 @@ def check_and_clear_schedules():
                         }
 
                         # Отправляем уведомление
+                        day_name_localized = get_text(user_id, clear_day)
                         text = (
-                            f"🗑️ *Еженедельная очистка расписания*\n\n"
-                            f"Ваше расписание автоматически очищено в {day_names.get(clear_day, 'Воскресенье')}.\n\n"
-                            f"📝 Добавьте новые мероприятия командой /edit"
+                            f"🗑️ *{get_text(user_id, 'weekly_clear_title')}*\n\n"
+                            f"{get_text(user_id, 'schedule_auto_cleared')} {day_name_localized}.\n\n"
+                            f"{get_text(user_id, 'add_new_events_hint')}"
                         )
 
                         keyboard = InlineKeyboardMarkup()
@@ -1799,15 +1863,15 @@ def process_add_lesson(message, user_id, day_key):
     db.add_lesson(user_id, day_key, lesson_text)
 
     lessons = db.get_user_schedule(user_id, day_key)
-    text = f"✅ Мероприятие добавлено в *{DAYS[day_key]}*.\n\nТекущее расписание:\n"
+    text = f"✅ {get_text(user_id, 'event_added_to')} *{get_text(user_id, day_key)}*.\n\n{get_text(user_id, 'current_schedule')}:\n"
     for i, lesson in enumerate(lessons, 1):
         text += f"{i}. {lesson}\n"
 
     # Добавляем кнопки для дальнейших действий
     keyboard = types.InlineKeyboardMarkup()
     keyboard.row(
-        types.InlineKeyboardButton("➕ Ещё", callback_data=f"add_{user_id}_{day_key}"),
-        types.InlineKeyboardButton("🔙 Назад", callback_data=f"view_{user_id}_{day_key}")
+        types.InlineKeyboardButton(get_text(user_id, 'add_more_btn'), callback_data=f"add_{user_id}_{day_key}"),
+        types.InlineKeyboardButton(get_text(user_id, 'back_btn'), callback_data=f"view_{user_id}_{day_key}")
     )
 
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=keyboard)
