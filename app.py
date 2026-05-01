@@ -6,6 +6,7 @@ import threading
 import time
 import schedule
 import sqlite3
+import re
 from translations import TRANSLATIONS
 from datetime import datetime, timedelta
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
@@ -514,7 +515,6 @@ def send_daily_schedule_notification():
             if lessons:
                 # Формируем список мероприятий с указанием времени
                 lessons_list = []
-                import re
                 for lesson in lessons:
                     time_match = re.search(r'(\d{1,2}):(\d{2})', lesson)
                     if time_match:
@@ -566,7 +566,6 @@ def send_upcoming_lesson_reminders():
 
             lessons = db.get_user_schedule(user_id, day_key)
 
-            import re
             for lesson in lessons:
                 # Ищем время в формате ЧЧ:ММ
                 time_match = re.search(r'(\d{1,2}):(\d{2})', lesson)
@@ -806,7 +805,6 @@ def cmd_upcoming(message):
 
     lessons = db.get_user_schedule(user_id, day_key)
 
-    import re
     upcoming = []
 
     for lesson in lessons:
