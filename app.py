@@ -1111,24 +1111,23 @@ def callback_inline(call):
                 reply_markup=markup
             )
 
+
         elif action == 'settime':
             notify_time = parts[2]
-            # Проверяем формат времени
             if len(notify_time) == 5 and notify_time[2] == ':':
                 db.update_notification_settings(user_id, notify_time=notify_time)
                 bot.answer_callback_query(call.id, f"✅ Время установлено: {notify_time}")
 
-                # 👇 ОБНОВЛЯЕМ СООБЩЕНИЕ, а не отправляем новое
-                # Получаем обновленные настройки
                 settings = db.get_notification_settings(user_id)
-                status = "✅ Включены" if settings['enabled'] else "❌ Отключены"
+                status = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id,
+                                                                                                 'notif_disabled')
 
                 text = (
-                    "🔔 *Настройки уведомлений*\n\n"
-                    f"Статус: {status}\n"
-                    f"⏰ Утреннее уведомление: *{settings['notify_time']}*\n"
-                    f"⏱ Напоминать за: *{settings['notify_before_minutes']}* минут\n\n"
-                    "Выберите действие:"
+                    f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+                    f"{get_text(user_id, 'notif_status')}: {status}\n"
+                    f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+                    f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+                    f"{get_text(user_id, 'notif_choose_action')}:"
                 )
 
                 keyboard = types.InlineKeyboardMarkup(row_width=2)
@@ -1162,6 +1161,8 @@ def callback_inline(call):
                     label = get_text(user_id, 'hours_24')
                 markup.add(types.InlineKeyboardButton(label, callback_data=f"notif_setinterval_{m}"))
 
+            markup.add(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'), callback_data="notif_cancel"))
+
             bot.edit_message_text(
                 get_text(user_id, 'interval_title'),
                 chat_id,
@@ -1169,31 +1170,36 @@ def callback_inline(call):
                 reply_markup=markup
             )
 
+
         elif action == 'setinterval':
             minutes = int(parts[2])
             db.update_notification_settings(user_id, notify_before_minutes=minutes)
-            bot.answer_callback_query(call.id, f"✅ Интервал установлен: {minutes} минут")
+            bot.answer_callback_query(call.id, get_text(user_id, 'interval_set', minutes))
 
-            # 👇 ОБНОВЛЯЕМ СООБЩЕНИЕ
             settings = db.get_notification_settings(user_id)
-            status = "✅ Включены" if settings['enabled'] else "❌ Отключены"
+
+            status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id,
+                                                                                                  'notif_disabled')
 
             text = (
-                "🔔 *Настройки уведомлений*\n\n"
-                f"Статус: {status}\n"
-                f"⏰ Утреннее уведомление: *{settings['notify_time']}*\n"
-                f"⏱ Напоминать за: *{settings['notify_before_minutes']}* минут\n\n"
-                "Выберите действие:"
+                f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+                f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+                f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+                f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+                f"{get_text(user_id, 'notif_choose_action')}:"
             )
 
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.row(
-                types.InlineKeyboardButton("🔛 Вкл/Выкл", callback_data=f"notif_toggle_{user_id}"),
-                types.InlineKeyboardButton("⏰ Время уведомления", callback_data=f"notif_time_{user_id}")
+                types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'),
+                                           callback_data=f"notif_toggle_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
+
             )
             keyboard.row(
-                types.InlineKeyboardButton("⏱ Интервал напоминания", callback_data=f"notif_interval_{user_id}"),
-                types.InlineKeyboardButton("📝 Тест", callback_data=f"notif_test_{user_id}")
+                types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+                                           callback_data=f"notif_interval_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
             )
 
             bot.edit_message_text(

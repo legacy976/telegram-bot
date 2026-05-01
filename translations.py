@@ -90,6 +90,7 @@ TRANSLATIONS = {
         'minutes_short': "мин",
         'hours_24': "24 часа",
         'test_notification': "🔔 *Тестовое уведомление*\n\nЕсли вы это видите, значит уведомления работают правильно!",
+        'interval_set': "✅ Интервал установлен: {} минут",
     },
     'en': {
 
@@ -183,5 +184,6 @@ TRANSLATIONS = {
         'minutes_short': "min",
         'hours_24': "24 hours",
         'test_notification': "🔔 *Test notification*\n\nIf you see this, notifications are working correctly!",
+        'interval_set': "✅ Interval set: {} minutes",
     }
 }
