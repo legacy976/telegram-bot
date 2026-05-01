@@ -1961,8 +1961,8 @@ if __name__ == '__main__':
     setup_commands()
 
     try:
-        # notification_thread = threading.Thread(target=notification_worker, daemon=True)
-        # notification_thread.start()
+        notification_thread = threading.Thread(target=notification_worker, daemon=True)
+        notification_thread.start()
         logger.info("Notification worker started")
     except Exception as e:
         logger.error(f"Failed to start notification worker: {e}")
