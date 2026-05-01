@@ -25,6 +25,8 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден!")
 
+ADMIN_ID = int(os.getenv('ADMIN_ID', 0))
+
 bot = TeleBot(BOT_TOKEN)
 
 DAYS = {
@@ -1718,7 +1720,6 @@ def callback_inline(call):
 @bot.message_handler(commands=['download_db'])
 def cmd_download_db(message):
     user_id = message.from_user.id
-    ADMIN_ID = 6129089122  # ваш Telegram ID
     if user_id != ADMIN_ID:
         bot.reply_to(message, "❌ Нет прав")
         return
@@ -1728,10 +1729,7 @@ def cmd_download_db(message):
 
 @bot.message_handler(commands=['list_users'])
 def cmd_list_users(message):
-    """Показать список пользователей (только для админа)"""
     user_id = message.from_user.id
-    ADMIN_ID = 6129089122  # 👈 ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
-
     if user_id != ADMIN_ID:
         bot.reply_to(message, "❌ Нет прав")
         return
