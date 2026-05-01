@@ -995,7 +995,7 @@ def cmd_language(message):
 
     bot.send_message(
         message.chat.id,
-        "🌍 Выберите язык / Choose a language:",
+        get_text(user_id, 'choose_language'),
         reply_markup=keyboard
     )
 
@@ -1047,7 +1047,7 @@ def callback_inline(call):
     if data.startswith('ack_'):
         bot.answer_callback_query(call.id, "✅ Отлично!")
         bot.edit_message_text(
-            "✅ Напоминание получено!\nУдачного дня!",
+            get_text(user_id, 'reminder_received'),
             chat_id,
             call.message.message_id
         )
@@ -1105,7 +1105,7 @@ def callback_inline(call):
             markup.add(types.InlineKeyboardButton(get_text(user_id, 'cancel_btn'), callback_data="notif_cancel"))
 
             bot.edit_message_text(
-                "⏰ Выберите время для ежедневных уведомлений:",
+                get_text(user_id, 'choose_notify_time'),
                 chat_id,
                 call.message.message_id,
                 reply_markup=markup
@@ -1568,7 +1568,7 @@ def callback_inline(call):
         if action == 'done':
             bot.answer_callback_query(call.id, "✅ Отмечено!")
             bot.edit_message_text(
-                "✅ Хорошего дня!",
+                get_text(user_id, 'good_day'),
                 chat_id,
                 call.message.message_id
             )

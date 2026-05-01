@@ -80,6 +80,13 @@ TRANSLATIONS = {
         'current_schedule': "Текущее расписание",
         'add_more_btn': "➕ Ещё",
         'event_deleted_from': "Мероприятие удалено из",
+        'reminder_received': "✅ Напоминание получено!\nУдачного дня!",
+        'good_day': "✅ Хорошего дня!",
+        'choose_notify_time': "⏰ Выберите время для ежедневных уведомлений:",
+        'choose_clear_day_title': "📅 Выберите день недели для автоматической очистки:",
+        'back_btn_short': "🔙 Назад",
+        'enter_lesson_text': "❌ Пожалуйста, введите текст мероприятия",
+        'add_schedule_btn': "📅 Добавить расписание",
     },
     'en': {
 
@@ -163,5 +170,12 @@ TRANSLATIONS = {
         'current_schedule': "Current schedule",
         'add_more_btn': "➕ More",
         'event_deleted_from': "Event deleted from",
+        'reminder_received': "✅ Reminder received!\nHave a great day!",
+        'good_day': "✅ Have a great day!",
+        'choose_notify_time': "⏰ Choose time for daily notifications:",
+        'choose_clear_day_title': "📅 Choose day of week for auto-clear:",
+        'back_btn_short': "🔙 Back",
+        'enter_lesson_text': "❌ Please enter event text",
+        'add_schedule_btn': "📅 Add schedule",
     }
 }
