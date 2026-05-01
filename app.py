@@ -1951,22 +1951,20 @@ def process_comment_input(message, user_id, day_key, lesson_idx, lesson_name):
 if __name__ == '__main__':
     logger.info("Бот запущен...")
 
+    try:
+        bot.remove_webhook()
+        logger.info("Webhook removed")
+    except Exception as e:
+        logger.warning(f"Failed to remove webhook: {e}")
+
     setup_commands()
 
-    # Запускаем поток с уведомлениями
     try:
         notification_thread = threading.Thread(target=notification_worker, daemon=True)
         notification_thread.start()
         logger.info("Notification worker started")
     except Exception as e:
         logger.error(f"Failed to start notification worker: {e}")
-
-    # Отключаем вебхук
-    try:
-        bot.remove_webhook()
-        logger.info("Webhook removed")
-    except Exception as e:
-        logger.warning(f"Failed to remove webhook: {e}")
 
     try:
         logger.info("Starting bot polling...")
