@@ -1711,8 +1711,37 @@ def callback_inline(call):
             logger.error(f"Error in callback {data}: {e}")
             bot.answer_callback_query(call.id, "❌ Произошла ошибка", show_alert=True)
 
+
     elif data == "cancel":
-        bot.edit_message_text("❌ Действие отменено.", chat_id, call.message.message_id)
+        settings = db.get_notification_settings(user_id)
+        status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id, 'notif_disabled')
+
+        text = (
+            f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+            f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+            f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+            f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+            f"{get_text(user_id, 'notif_choose_action')}:"
+        )
+
+        keyboard = types.InlineKeyboardMarkup(row_width=2)
+        keyboard.row(
+            types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'), callback_data=f"notif_toggle_{user_id}"),
+            types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
+        )
+        keyboard.row(
+            types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+                                       callback_data=f"notif_interval_{user_id}"),
+            types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
+        )
+
+        bot.edit_message_text(
+            text,
+            chat_id,
+            call.message.message_id,
+            parse_mode='Markdown',
+            reply_markup=keyboard
+        )
         bot.answer_callback_query(call.id)
     else:
         logger.warning(f"Unknown callback data: {data}")
