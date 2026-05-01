@@ -1956,6 +1956,8 @@ if __name__ == '__main__':
     except Exception as e:
         logger.warning(f"Failed to remove webhook: {e}")
 
+    time.sleep(5)
+
     setup_commands()
 
     try:
