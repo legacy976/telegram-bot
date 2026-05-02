@@ -953,7 +953,7 @@ def cmd_debug(message):
     """Показать текущие настройки из БД (для отладки)"""
     user_id = message.from_user.id
 
-    with sqlite3.connect('bot.db') as conn:
+    with sqlite3.connect(db.db_path) as conn:
         cursor = conn.execute('''
             SELECT user_id, enabled, notify_time, notify_before_minutes, updated_at 
             FROM notification_settings WHERE user_id = ?
@@ -1067,7 +1067,8 @@ def callback_inline(call):
 
             # 👇 ОБНОВЛЯЕМ СООБЩЕНИЕ
             settings = db.get_notification_settings(user_id)
-            status_text = "✅ Включены" if settings['enabled'] else "❌ Отключены"
+            status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id,
+                                                                                                  'notif_disabled')
 
             text = (
                 f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
@@ -1135,12 +1136,16 @@ def callback_inline(call):
 
                 keyboard = types.InlineKeyboardMarkup(row_width=2)
                 keyboard.row(
-                    types.InlineKeyboardButton("🔛 Вкл/Выкл", callback_data=f"notif_toggle_{user_id}"),
-                    types.InlineKeyboardButton("⏰ Время уведомления", callback_data=f"notif_time_{user_id}")
+                    types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'),
+                                               callback_data=f"notif_toggle_{user_id}"),
+                    types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'),
+                                               callback_data=f"notif_time_{user_id}")
                 )
                 keyboard.row(
-                    types.InlineKeyboardButton("⏱ Интервал напоминания", callback_data=f"notif_interval_{user_id}"),
-                    types.InlineKeyboardButton("📝 Тест", callback_data=f"notif_test_{user_id}")
+                    types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+                                               callback_data=f"notif_interval_{user_id}"),
+                    types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'),
+                                               callback_data=f"notif_test_{user_id}")
                 )
 
                 # Обновляем существующее сообщение
@@ -1220,8 +1225,41 @@ def callback_inline(call):
             )
             bot.answer_callback_query(call.id, "✅ Тестовое уведомление отправлено")
 
+
         elif action == 'cancel':
-            cmd_notifications(call.message)
+
+            settings = db.get_notification_settings(user_id)
+            status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id,
+                                                                                                  'notif_disabled')
+            text = (
+                f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+                f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+                f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+                f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+                f"{get_text(user_id, 'notif_choose_action')}:"
+            )
+
+            keyboard = types.InlineKeyboardMarkup(row_width=2)
+            keyboard.row(
+                types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'),
+                                           callback_data=f"notif_toggle_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
+            )
+            keyboard.row(
+                types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+                                           callback_data=f"notif_interval_{user_id}"),
+                types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
+            )
+            bot.edit_message_text(
+                text,
+                chat_id,
+                call.message.message_id,
+                parse_mode='Markdown',
+                reply_markup=keyboard
+            )
+            bot.answer_callback_query(call.id)
+
+            return
 
         return
 
@@ -1397,7 +1435,7 @@ def callback_inline(call):
         db.set_user_language(user_id, lang)
         bot.answer_callback_query(call.id, "✅ Language changed!" if lang == 'en' else "✅ Язык изменён!")
 
-        text = "🌍 Language changed to English!" if lang == 'en' else "🌍 Язык изменён на русский!"
+        text = get_text(user_id, 'language_changed')
         bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
         return
 
@@ -1721,37 +1759,37 @@ def callback_inline(call):
             bot.answer_callback_query(call.id, "❌ Произошла ошибка", show_alert=True)
 
 
-    elif data == "cancel":
-        settings = db.get_notification_settings(user_id)
-        status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id, 'notif_disabled')
-
-        text = (
-            f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
-            f"{get_text(user_id, 'notif_status')}: {status_text}\n"
-            f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
-            f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
-            f"{get_text(user_id, 'notif_choose_action')}:"
-        )
-
-        keyboard = types.InlineKeyboardMarkup(row_width=2)
-        keyboard.row(
-            types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'), callback_data=f"notif_toggle_{user_id}"),
-            types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
-        )
-        keyboard.row(
-            types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
-                                       callback_data=f"notif_interval_{user_id}"),
-            types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
-        )
-
-        bot.edit_message_text(
-            text,
-            chat_id,
-            call.message.message_id,
-            parse_mode='Markdown',
-            reply_markup=keyboard
-        )
-        bot.answer_callback_query(call.id)
+    # elif data == "cancel":
+    #     settings = db.get_notification_settings(user_id)
+    #     status_text = get_text(user_id, 'notif_enabled') if settings['enabled'] else get_text(user_id, 'notif_disabled')
+    #
+    #     text = (
+    #         f"🔔 *{get_text(user_id, 'notif_title')}*\n\n"
+    #         f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+    #         f"{get_text(user_id, 'notif_time')}: *{settings['notify_time']}*\n"
+    #         f"{get_text(user_id, 'notif_before')}: *{settings['notify_before_minutes']}* {get_text(user_id, 'minutes')}\n\n"
+    #         f"{get_text(user_id, 'notif_choose_action')}:"
+    #     )
+    #
+    #     keyboard = types.InlineKeyboardMarkup(row_width=2)
+    #     keyboard.row(
+    #         types.InlineKeyboardButton(get_text(user_id, 'notif_toggle_btn'), callback_data=f"notif_toggle_{user_id}"),
+    #         types.InlineKeyboardButton(get_text(user_id, 'notif_time_btn'), callback_data=f"notif_time_{user_id}")
+    #     )
+    #     keyboard.row(
+    #         types.InlineKeyboardButton(get_text(user_id, 'notif_interval_btn'),
+    #                                    callback_data=f"notif_interval_{user_id}"),
+    #         types.InlineKeyboardButton(get_text(user_id, 'notif_test_btn'), callback_data=f"notif_test_{user_id}")
+    #     )
+    #
+    #     bot.edit_message_text(
+    #         text,
+    #         chat_id,
+    #         call.message.message_id,
+    #         parse_mode='Markdown',
+    #         reply_markup=keyboard
+    #     )
+    #     bot.answer_callback_query(call.id)
     else:
         logger.warning(f"Unknown callback data: {data}")
         bot.answer_callback_query(call.id, "⚠️ Неизвестная команда")
@@ -1763,7 +1801,7 @@ def cmd_download_db(message):
     if user_id != ADMIN_ID:
         bot.reply_to(message, "❌ Нет прав")
         return
-    with open('bot.db', 'rb') as f:
+    with open(db.db_path, 'rb') as f:
         bot.send_document(message.chat.id, f, caption="📁 База данных")
 
 
@@ -1774,7 +1812,7 @@ def cmd_list_users(message):
         bot.reply_to(message, "❌ Нет прав")
         return
 
-    conn = sqlite3.connect('bot.db')
+    conn = sqlite3.connect(db.db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, username, first_name, created_at FROM users ORDER BY created_at DESC")
     users = cursor.fetchall()
@@ -1810,7 +1848,7 @@ def check_and_clear_schedules():
                 # Проверяем, наступил ли день очистки
                 if current_day == clear_day:
                     # Проверяем, не отправляли ли уже сегодня уведомление
-                    with sqlite3.connect('bot.db') as conn:
+                    with sqlite3.connect(db.db_path) as conn:
                         cursor = conn.execute('''
                             SELECT updated_at FROM notification_settings WHERE user_id = ?
                         ''', (user_id,))
