@@ -979,6 +979,10 @@ def cmd_debug(message):
     """Показать текущие настройки из БД (для отладки)"""
     user_id = message.from_user.id
 
+    if user_id != ADMIN_ID:
+        bot.reply_to(message, get_text(user_id, 'no_permission'))
+        return
+
     with sqlite3.connect(db.db_path) as conn:
         cursor = conn.execute('''
             SELECT user_id, enabled, notify_time, notify_before_minutes, updated_at 
@@ -1072,7 +1076,7 @@ def callback_inline(call):
 
     # Обработка кнопок "Понятно" из уведомлений
     if data.startswith('ack_'):
-        bot.answer_callback_query(call.id, "✅ Отлично!")
+        bot.answer_callback_query(call.id, get_text(user_id, 'great'))
         bot.edit_message_text(
             get_text(user_id, 'reminder_received'),
             chat_id,
@@ -1249,7 +1253,7 @@ def callback_inline(call):
                 user_id,
                 get_text(user_id, 'test_notification')
             )
-            bot.answer_callback_query(call.id, "✅ Тестовое уведомление отправлено")
+            bot.answer_callback_query(call.id, get_text(user_id, 'test_sent'))
 
 
         elif action == 'cancel':
@@ -1300,7 +1304,7 @@ def callback_inline(call):
             new_value = not settings['auto_clear']
             db.update_auto_clear_settings(user_id, new_value)
 
-            status = "включена" if new_value else "отключена"
+            status = get_text(user_id, 'enabled_lower') if new_value else get_text(user_id, 'disabled_lower')
             bot.answer_callback_query(call.id, f"✅ Автоочистка {status}")
 
             # Обновляем сообщение
@@ -1315,7 +1319,7 @@ def callback_inline(call):
                 'sunday': get_text(user_id, 'sunday')
             }
             status_text = "✅ Включена" if updated_settings['auto_clear'] else "❌ Отключена"
-            clear_day_name = day_names.get(updated_settings['clear_day'], 'Воскресенье')
+            clear_day_name = day_names.get(updated_settings['clear_day'], get_text(user_id, 'sunday'))
 
             text = (
                 f"🗑️ *{get_text(user_id, 'auto_clear_title')}*\n\n"
@@ -1329,22 +1333,22 @@ def callback_inline(call):
 
             if updated_settings['auto_clear']:
                 keyboard.add(InlineKeyboardButton(
-                    "🔴 Отключить автоочистку",
+                    get_text(user_id, 'auto_clear_disable_btn'),
                     callback_data=f"autoclear_toggle_{user_id}"
                 ))
             else:
                 keyboard.add(InlineKeyboardButton(
-                    "🟢 Включить автоочистку",
+                    get_text(user_id, 'auto_clear_enable_btn'),
                     callback_data=f"autoclear_toggle_{user_id}"
                 ))
 
             keyboard.add(InlineKeyboardButton(
-                "📅 Выбрать день очистки",
+                get_text(user_id, 'auto_clear_choose_day_btn'),
                 callback_data=f"autoclear_day_{user_id}"
             ))
 
             keyboard.add(InlineKeyboardButton(
-                "🧹 Очистить сейчас",
+                get_text(user_id, 'auto_clear_now_btn'),
                 callback_data=f"autoclear_now_{user_id}"
             ))
 
@@ -1371,10 +1375,10 @@ def callback_inline(call):
                     day_name,
                     callback_data=f"autoclear_setday_{user_id}_{day_key}"
                 ))
-            markup.add(InlineKeyboardButton("❌ Отмена", callback_data="autoclear_cancel"))
+            markup.add(InlineKeyboardButton(get_text(user_id, 'auto_clear_cancel'), callback_data="autoclear_cancel"))
 
             bot.edit_message_text(
-                "📅 Выберите день недели для автоматической очистки:",
+                get_text(user_id, 'auto_clear_day_choose'),
                 chat_id,
                 call.message.message_id,
                 reply_markup=markup
@@ -1401,7 +1405,7 @@ def callback_inline(call):
             # Обновляем главное сообщение
             updated_settings = db.get_auto_clear_settings(user_id)
             status_text = "✅ Включена" if updated_settings['auto_clear'] else "❌ Отключена"
-            clear_day_name = day_names.get(updated_settings['clear_day'], 'Воскресенье')
+            clear_day_name = day_names.get(updated_settings['clear_day'], get_text(user_id, 'sunday'))
 
             text = (
                 "🗑️ *Автоматическая очистка расписания*\n\n"
@@ -1446,11 +1450,11 @@ def callback_inline(call):
         elif action == 'now':
             user_id = int(parts[2])
             if db.clear_user_schedule(user_id):
-                bot.answer_callback_query(call.id, "✅ Расписание очищено!")
+                bot.answer_callback_query(call.id, get_text(user_id, 'schedule_cleared_ok'))
                 text = get_text(user_id, 'schedule_cleared_success')
                 bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
             else:
-                bot.answer_callback_query(call.id, "❌ Ошибка при очистке", show_alert=True)
+                bot.answer_callback_query(call.id, get_text(user_id, 'schedule_clear_error'), show_alert=True)
             return
 
         elif action == 'cancel':
@@ -1580,17 +1584,17 @@ def callback_inline(call):
             tz_name = data[3:]
             if tz_name in pytz.all_timezones:
                 if db.set_user_timezone(user_id, tz_name):
-                    bot.answer_callback_query(call.id, f"✅ Часовой пояс сохранён: {tz_name}")
+                    bot.answer_callback_query(call.id, get_text(user_id, 'timezone_saved').format(tz_name))
                     bot.edit_message_text(
-                        f"✅ Часовой пояс установлен: *{tz_name}*",
+                        get_text(user_id, 'timezone_set').format(tz_name),
                         chat_id,
                         call.message.message_id,
                         parse_mode='Markdown'
                     )
                 else:
-                    bot.answer_callback_query(call.id, "❌ Ошибка сохранения", show_alert=True)
+                    bot.answer_callback_query(call.id, get_text(user_id, 'timezone_error'), show_alert=True)
             else:
-                bot.answer_callback_query(call.id, "❌ Неверный часовой пояс", show_alert=True)
+                bot.answer_callback_query(call.id, get_text(user_id, 'timezone_invalid'), show_alert=True)
             return
 
     elif data == 'change_timezone':
@@ -1647,7 +1651,7 @@ def callback_inline(call):
         action = parts[0]
 
         if action == 'done':
-            bot.answer_callback_query(call.id, "✅ Отмечено!")
+            bot.answer_callback_query(call.id, get_text(user_id, 'marked'))
             bot.edit_message_text(
                 get_text(user_id, 'good_day'),
                 chat_id,
@@ -1655,7 +1659,7 @@ def callback_inline(call):
             )
 
         elif action == 'ack':
-            bot.answer_callback_query(call.id, "✅ Принято!")
+            bot.answer_callback_query(call.id, get_text(user_id, 'accepted'))
 
         # Парсим user_id и day_key из callback
         if len(parts) >= 3 and parts[1].isdigit():
@@ -1673,7 +1677,7 @@ def callback_inline(call):
 
         # Проверка прав
         if callback_user_id != user_id:
-            bot.answer_callback_query(call.id, "❌ Это не ваше расписание!", show_alert=True)
+            bot.answer_callback_query(call.id, get_text(user_id, 'not_your_schedule'), show_alert=True)
             return
 
         try:
@@ -1749,7 +1753,7 @@ def callback_inline(call):
             elif action == 'remove':
                 lessons = db.get_user_schedule(user_id, day_key)
                 if not lessons:
-                    bot.answer_callback_query(call.id, "❌ Нет мероприятий для удаления", show_alert=True)
+                    bot.answer_callback_query(call.id, get_text(user_id, 'no_events_to_delete'), show_alert=True)
                     return
 
                 keyboard = types.InlineKeyboardMarkup()
@@ -1774,7 +1778,7 @@ def callback_inline(call):
 
             elif action == 'del':
                 if db.delete_lesson(user_id, day_key, idx):
-                    bot.answer_callback_query(call.id, "✅ Мероприятие удалено")
+                    bot.answer_callback_query(call.id, get_text(user_id, 'lesson_deleted'))
                     lessons = db.get_user_schedule(user_id, day_key)
                     text = f"✅ {get_text(user_id, 'event_deleted_from')} *{get_text(user_id, day_key)}*.\n\n{get_text(user_id, 'current_schedule')}:\n"
                     if lessons:
@@ -1784,11 +1788,12 @@ def callback_inline(call):
                         text += "Мероприятий нет."
                     bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
                 else:
-                    bot.answer_callback_query(call.id, "❌ Ошибка при удалении", show_alert=True)
+                    bot.answer_callback_query(call.id, get_text(user_id, 'delete_error'), show_alert=True)
+
 
         except Exception as e:
             logger.error(f"Error in callback {data}: {e}")
-            bot.answer_callback_query(call.id, "❌ Произошла ошибка", show_alert=True)
+            bot.answer_callback_query(call.id, get_text(user_id, 'error_occurred'), show_alert=True)
 
 
     # elif data == "cancel":
@@ -1824,14 +1829,14 @@ def callback_inline(call):
     #     bot.answer_callback_query(call.id)
     else:
         logger.warning(f"Unknown callback data: {data}")
-        bot.answer_callback_query(call.id, "⚠️ Неизвестная команда")
+        bot.answer_callback_query(call.id, get_text(user_id, 'unknown_command'))
 
 
 @bot.message_handler(commands=['download_db'])
 def cmd_download_db(message):
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
-        bot.reply_to(message, "❌ Нет прав")
+        bot.reply_to(message, get_text(user_id, 'no_permission'))
         return
     with open(db.db_path, 'rb') as f:
         bot.send_document(message.chat.id, f, caption="📁 База данных")
@@ -1841,7 +1846,7 @@ def cmd_download_db(message):
 def cmd_list_users(message):
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
-        bot.reply_to(message, "❌ Нет прав")
+        bot.reply_to(message, get_text(user_id, 'no_permission'))
         return
 
     conn = sqlite3.connect(db.db_path)
@@ -1936,21 +1941,20 @@ def process_manual_timezone(message):
         if db.set_user_timezone(user_id, tz_name):
             bot.reply_to(
                 message,
-                f"✅ Часовой пояс установлен: *{tz_name}*",
+                get_text(user_id, 'timezone_set').format(tz_name),
                 parse_mode='Markdown'
             )
         else:
-            bot.reply_to(message, "❌ Ошибка при сохранении")
+            bot.reply_to(message, get_text(user_id, 'timezone_error'))
     else:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(
-            "🌍 Выбрать из списка",
+            get_text(user_id, 'timezone_manual'),
             callback_data="tz_manual"
         ))
         bot.reply_to(
             message,
-            f"❌ Часовой пояс '{tz_name}' не найден.\n"
-            "Проверьте название или выберите из списка.",
+            get_text(user_id, 'timezone_not_found').format(tz_name),
             reply_markup=markup
         )
 
