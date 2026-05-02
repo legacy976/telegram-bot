@@ -486,6 +486,14 @@ def send_notification(user_id: int, message: str, keyboard: Optional[types.Inlin
     except Exception as e:
         logger.error(f"Failed to send notification to user {user_id}: {e}")
 
+        # Если пользователь заблокировал бота — отключаем ему уведомления
+        if "403" in str(e) and "blocked" in str(e):
+            try:
+                db.update_notification_settings(user_id, enabled=False)
+                logger.info(f"Notifications disabled for user {user_id} (blocked bot)")
+            except Exception as db_error:
+                logger.error(f"Failed to disable notifications for user {user_id}: {db_error}")
+
 
 def send_daily_schedule_notification():
     """Отправить ежедневное уведомление с расписанием на сегодня"""
@@ -629,6 +637,23 @@ def send_upcoming_lesson_reminders():
             logger.error(f"Error sending reminder to user {user_id}: {e}")
 
 
+def clean_blocked_users():
+    """Очистить список пользователей, которые заблокировали бота"""
+    users = db.get_all_users_with_notifications_enabled()
+
+    for user_id in users:
+        try:
+            # Пробуем отправить тестовое сообщение (silent)
+            bot.send_chat_action(user_id, 'typing')
+        except Exception as e:
+            if "403" in str(e) and "blocked" in str(e):
+                db.update_notification_settings(user_id, enabled=False)
+                logger.info(f"Auto-disabled notifications for blocked user {user_id}")
+            elif "404" in str(e) or "chat not found" in str(e):
+                db.update_notification_settings(user_id, enabled=False)
+                logger.info(f"Auto-disabled notifications for user {user_id} (chat not found)")
+
+
 def notification_worker():
     """Фоновый поток для проверки и отправки уведомлений"""
     logger.info("Notification worker started")
@@ -636,6 +661,7 @@ def notification_worker():
     schedule.every().minute.do(send_upcoming_lesson_reminders)
     schedule.every().minute.do(send_daily_schedule_notification)
     schedule.every().minute.do(check_and_clear_schedules)
+    schedule.every().hour.do(clean_blocked_users)
 
     while True:
         try:
