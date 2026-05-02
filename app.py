@@ -927,13 +927,13 @@ def cmd_autoclear(message):
     settings = db.get_auto_clear_settings(user_id)
 
     day_names = {
-        'monday': 'Понедельник',
-        'tuesday': 'Вторник',
-        'wednesday': 'Среда',
-        'thursday': 'Четверг',
-        'friday': 'Пятница',
-        'saturday': 'Суббота',
-        'sunday': 'Воскресенье'
+        'monday': get_text(user_id, 'monday'),
+        'tuesday': get_text(user_id, 'tuesday'),
+        'wednesday': get_text(user_id, 'wednesday'),
+        'thursday': get_text(user_id, 'thursday'),
+        'friday': get_text(user_id, 'friday'),
+        'saturday': get_text(user_id, 'saturday'),
+        'sunday': get_text(user_id, 'sunday')
     }
 
     status = get_text(user_id, 'auto_clear_enabled') if settings['auto_clear'] else get_text(user_id,
@@ -1044,7 +1044,7 @@ def show_schedule_with_comments(chat_id, user_id, day_key):
     # Кнопка для добавления/редактирования комментария
     keyboard = types.InlineKeyboardMarkup()
     keyboard.row(
-        types.InlineKeyboardButton("📝 Добавить комментарий", callback_data=f"comment_{user_id}_{day_key}")
+        types.InlineKeyboardButton(get_text(user_id, 'add_comment_btn'), callback_data=f"comment_{user_id}_{day_key}")
     )
 
     bot.send_message(chat_id, reply, parse_mode='Markdown', reply_markup=keyboard)
@@ -1306,20 +1306,23 @@ def callback_inline(call):
             # Обновляем сообщение
             updated_settings = db.get_auto_clear_settings(user_id)
             day_names = {
-                'monday': 'Понедельник', 'tuesday': 'Вторник',
-                'wednesday': 'Среда', 'thursday': 'Четверг',
-                'friday': 'Пятница', 'saturday': 'Суббота',
-                'sunday': 'Воскресенье'
+                'monday': get_text(user_id, 'monday'),
+                'tuesday': get_text(user_id, 'tuesday'),
+                'wednesday': get_text(user_id, 'wednesday'),
+                'thursday': get_text(user_id, 'thursday'),
+                'friday': get_text(user_id, 'friday'),
+                'saturday': get_text(user_id, 'saturday'),
+                'sunday': get_text(user_id, 'sunday')
             }
             status_text = "✅ Включена" if updated_settings['auto_clear'] else "❌ Отключена"
             clear_day_name = day_names.get(updated_settings['clear_day'], 'Воскресенье')
 
             text = (
-                "🗑️ *Автоматическая очистка расписания*\n\n"
-                f"Статус: {status_text}\n"
-                f"День очистки: *{clear_day_name}*\n\n"
-                "Расписание будет автоматически очищаться в выбранный день недели в 00:00\n\n"
-                "Выберите действие:"
+                f"🗑️ *{get_text(user_id, 'auto_clear_title')}*\n\n"
+                f"{get_text(user_id, 'notif_status')}: {status_text}\n"
+                f"{get_text(user_id, 'clear_day')}: *{clear_day_name}*\n\n"
+                f"{get_text(user_id, 'auto_clear_info_text')}\n\n"
+                f"{get_text(user_id, 'notif_choose_action')}:"
             )
 
             keyboard = InlineKeyboardMarkup(row_width=2)
@@ -1385,10 +1388,13 @@ def callback_inline(call):
             db.update_auto_clear_settings(user_id, settings['auto_clear'], day_key)
 
             day_names = {
-                'monday': 'Понедельник', 'tuesday': 'Вторник',
-                'wednesday': 'Среда', 'thursday': 'Четверг',
-                'friday': 'Пятница', 'saturday': 'Суббота',
-                'sunday': 'Воскресенье'
+                'monday': get_text(user_id, 'monday'),
+                'tuesday': get_text(user_id, 'tuesday'),
+                'wednesday': get_text(user_id, 'wednesday'),
+                'thursday': get_text(user_id, 'thursday'),
+                'friday': get_text(user_id, 'friday'),
+                'saturday': get_text(user_id, 'saturday'),
+                'sunday': get_text(user_id, 'sunday')
             }
             bot.answer_callback_query(call.id, f"✅ День очистки: {day_names[day_key]}")
 
@@ -1441,7 +1447,7 @@ def callback_inline(call):
             user_id = int(parts[2])
             if db.clear_user_schedule(user_id):
                 bot.answer_callback_query(call.id, "✅ Расписание очищено!")
-                text = "🗑️ *Расписание очищено*\n\nДобавьте новые мероприятия командой /edit"
+                text = get_text(user_id, 'schedule_cleared_success')
                 bot.edit_message_text(text, chat_id, call.message.message_id, parse_mode='Markdown')
             else:
                 bot.answer_callback_query(call.id, "❌ Ошибка при очистке", show_alert=True)
@@ -1565,7 +1571,7 @@ def callback_inline(call):
         if data == 'tz_manual':
             msg = bot.send_message(
                 chat_id,
-                "✏️ Введите название часового пояса (например: Europe/Moscow, America/New_York):"
+                get_text(user_id, 'enter_timezone')
             )
             bot.register_next_step_handler(msg, process_manual_timezone)
             bot.answer_callback_query(call.id)
@@ -1889,10 +1895,13 @@ def check_and_clear_schedules():
                     # Очищаем расписание
                     if db.clear_user_schedule(user_id):
                         day_names = {
-                            'monday': 'Понедельник', 'tuesday': 'Вторник',
-                            'wednesday': 'Среда', 'thursday': 'Четверг',
-                            'friday': 'Пятница', 'saturday': 'Суббота',
-                            'sunday': 'Воскресенье'
+                            'monday': get_text(user_id, 'monday'),
+                            'tuesday': get_text(user_id, 'tuesday'),
+                            'wednesday': get_text(user_id, 'wednesday'),
+                            'thursday': get_text(user_id, 'thursday'),
+                            'friday': get_text(user_id, 'friday'),
+                            'saturday': get_text(user_id, 'saturday'),
+                            'sunday': get_text(user_id, 'sunday')
                         }
 
                         # Отправляем уведомление
@@ -1905,7 +1914,7 @@ def check_and_clear_schedules():
 
                         keyboard = InlineKeyboardMarkup()
                         keyboard.add(InlineKeyboardButton(
-                            "📅 Добавить расписание",
+                            get_text(user_id, 'add_schedule_btn'),
                             callback_data=f"edit_{user_id}"
                         ))
 
@@ -1949,17 +1958,17 @@ def process_manual_timezone(message):
 def process_add_lesson(message, user_id, day_key):
     """Обработка добавления мероприятия"""
     if not message.text:
-        bot.send_message(message.chat.id, "❌ Пожалуйста, введите текст мероприятия")
+        bot.send_message(message.chat.id, get_text(user_id, 'enter_lesson_text_prompt'))
         return
 
     lesson_text = message.text.strip()
 
     if not lesson_text:
-        bot.send_message(message.chat.id, "❌ Мероприятие не может быть пустым.")
+        bot.send_message(message.chat.id, get_text(user_id, 'lesson_empty_error'))
         return
 
     if len(lesson_text) > 200:
-        bot.send_message(message.chat.id, "❌ Слишком длинное название (макс. 200 символов)")
+        bot.send_message(message.chat.id, get_text(user_id, 'lesson_too_long'))
         return
 
     db.add_lesson(user_id, day_key, lesson_text)
